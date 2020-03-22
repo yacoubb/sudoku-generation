@@ -104,6 +104,7 @@ def test_position_is_valid():
 def test_print():
     # TODO implement this
     util.print_board(util.code_to_board(boards['81'][0]))
+    util.print_board(util.init_guesses(util.code_to_board(boards['34'][0])))
 
 
 def test_load_json():

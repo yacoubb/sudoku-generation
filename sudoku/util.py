@@ -211,12 +211,37 @@ def position_is_valid(board, x, y):
 def print_board(board):
     """Pretty prints a board to console.
     """
-
-    for y in range(9):
-        line = ''
+    if board.shape == (9, 9):
         for x in range(9):
-            line += str(board[x][y] or '_') + ' '
-        print(line)
+            line = ''
+            for y in range(9):
+                line += str(board[x][y] or '_') + ' '
+            print(line)
+    elif board.shape == (9, 9, 9):
+        print_width = (3 * 9 * 2 + 10)
+        print('-' * print_width)
+        for x in range(9):
+            lines = ['|', '|', '|']
+            for y in range(9):
+                for z in range(9):
+                    if board[x][y][z] == 1:
+                        lines[z // 3] += str(z + 1) + ' '
+                    else:
+                        lines[z // 3] += '  '
+                if (y + 1) % 3 == 0:
+                    lines[0] += '‖'
+                    lines[1] += '‖'
+                    lines[2] += '‖'
+                else:
+                    lines[0] += '|'
+                    lines[1] += '|'
+                    lines[2] += '|'
+            for line in lines:
+                print(line)
+            if (x + 1) % 3 == 0:
+                print('=' * print_width)
+            else:
+                print('-' * print_width)
 
 
 def load(json_path):
@@ -226,3 +251,52 @@ def load(json_path):
         sudokus = json.loads(json_file.read())
 
     return sudokus
+
+
+def init_guesses(board):
+    """Converts a 2D board to a 3D array with 9 slots for cell guesses.
+
+    Parameters
+    ----------
+    board : ndarray
+
+    Returns
+    -------
+    ndarray
+        3D board with guesses filled in.
+
+    Raises
+    ------
+    InvalidBoardException
+        If the board is invalid.
+    """
+
+    if not board_is_valid(board):
+        raise InvalidBoardException
+
+    guess_board = np.full((9, 9, 9), [1, 1, 1, 1, 1, 1, 1, 1, 1])
+    for x in range(9):
+        for y in range(9):
+            if board[x][y] != 0:
+                for z in range(9):
+                    guess_board[x][y] = 0
+                guess_board[x][y][board[x][y] - 1] = 1
+                # remove this guess from row, column and box
+                yy = y
+                for xx in range(9):
+                    if xx == x:
+                        continue
+                    guess_board[xx][yy][board[x][y] - 1] = 0
+                xx = x
+                for yy in range(9):
+                    if yy == y:
+                        continue
+                    guess_board[xx][yy][board[x][y] - 1] = 0
+
+                for xx in range(x // 3, x // 3 + 3):
+                    for yy in range(y // 3, y // 3 + 3):
+                        if xx == x and yy == y:
+                            continue
+                        guess_board[xx][yy][board[x][y] - 1] = 0
+
+    return guess_board
