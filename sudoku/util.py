@@ -99,7 +99,7 @@ def code_to_board(code):
         x = to_x(i)
         y = to_y(i)
         board[x][y] = int(code[i])
-    return board
+    return board.T
 
 
 def board_to_code(board):
@@ -125,7 +125,7 @@ def board_to_code(board):
     code = ''
     for y in range(9):
         for x in range(9):
-            code += str(board[x][y])
+            code += str(board.T[x][y])
     return code
 
 
@@ -218,30 +218,41 @@ def print_board(board):
                 line += str(board[x][y] or '_') + ' '
             print(line)
     elif board.shape == (9, 9, 9):
-        print_width = (3 * 9 * 2 + 10)
-        print('-' * print_width)
+        thic_chars = "┃━┏┓┗┛"
+        thic_chars = "║═╔╗╚╝"
+        thin_chars = "│─┌┐└┘"
+        print_width = (3 * 9 * 2 + 17)
+        print(thic_chars[2] + thic_chars[1] * print_width + thic_chars[3])
         for x in range(9):
-            lines = ['|', '|', '|']
+            lines = [thic_chars[0] + ' ' for i in range(3)]
             for y in range(9):
-                for z in range(9):
-                    if board[x][y][z] == 1:
-                        lines[z // 3] += str(z + 1) + ' '
-                    else:
-                        lines[z // 3] += '  '
-                if (y + 1) % 3 == 0:
-                    lines[0] += '‖'
-                    lines[1] += '‖'
-                    lines[2] += '‖'
+                if sum(board[x][y]) == 1:
+                    # confirmed position
+                    lines[0] += ' ' * 6
+                    lines[1] += f'\033[1;32m  {np.argmax(board[x][y]) + 1}   \033[0;37m'
+                    lines[2] += ' ' * 6
                 else:
-                    lines[0] += '|'
-                    lines[1] += '|'
-                    lines[2] += '|'
+                    for z in range(9):
+                        if board[x][y][z] == 1:
+                            lines[z // 3] += '\033[0;34m' + str(z + 1) + ' \033[0;37m'
+                        else:
+                            lines[z // 3] += '  '
+                if (y + 1) % 3 == 0:
+                    lines[0] += thic_chars[0] + ' '
+                    lines[1] += thic_chars[0] + ' '
+                    lines[2] += thic_chars[0] + ' '
+                else:
+                    lines[0] += thin_chars[0] + ' '
+                    lines[1] += thin_chars[0] + ' '
+                    lines[2] += thin_chars[0] + ' '
             for line in lines:
                 print(line)
-            if (x + 1) % 3 == 0:
-                print('=' * print_width)
+            if x == 2 or x == 5:
+                print(thic_chars[0] + thic_chars[1] * print_width + thic_chars[0])
+            elif x == 8:
+                print(thic_chars[4] + thic_chars[1] * print_width + thic_chars[5])
             else:
-                print('-' * print_width)
+                print(thic_chars[0] + thin_chars[1] * print_width + thic_chars[0])
 
 
 def load(json_path):
@@ -251,6 +262,39 @@ def load(json_path):
         sudokus = json.loads(json_file.read())
 
     return sudokus
+
+
+def update_guesses(board, x, y):
+    """Takes a 3D guess board and cell coordinate and removes guesses from similar columns, rows and boxes.
+    Parameters
+    ----------
+    board : ndarray
+
+    Returns
+    -------
+    None
+    """
+    # TODO we should really check that the square contains only one guess?
+    assert np.sum(board[x][y]) == 1, 'update_guesses should only be called on a confirmed square'
+    for z in range(9):
+        if board[x][y][z] == 0:
+            continue
+        yy = y
+        for xx in range(9):
+            if xx == x:
+                continue
+            board[xx][yy][z] = 0
+        xx = x
+        for yy in range(9):
+            if yy == y:
+                continue
+            board[xx][yy][z] = 0
+
+        for xx in range((x // 3) * 3, (x // 3) * 3 + 3):
+            for yy in range((y // 3) * 3, (y // 3) * 3 + 3):
+                if xx == x and yy == y:
+                    continue
+                board[xx][yy][z] = 0
 
 
 def init_guesses(board):
@@ -282,21 +326,6 @@ def init_guesses(board):
                     guess_board[x][y] = 0
                 guess_board[x][y][board[x][y] - 1] = 1
                 # remove this guess from row, column and box
-                yy = y
-                for xx in range(9):
-                    if xx == x:
-                        continue
-                    guess_board[xx][yy][board[x][y] - 1] = 0
-                xx = x
-                for yy in range(9):
-                    if yy == y:
-                        continue
-                    guess_board[xx][yy][board[x][y] - 1] = 0
-
-                for xx in range(x // 3, x // 3 + 3):
-                    for yy in range(y // 3, y // 3 + 3):
-                        if xx == x and yy == y:
-                            continue
-                        guess_board[xx][yy][board[x][y] - 1] = 0
+                update_guesses(guess_board, x, y)
 
     return guess_board
