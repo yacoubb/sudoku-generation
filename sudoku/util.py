@@ -274,7 +274,6 @@ def update_guesses(board, x, y):
     -------
     None
     """
-    # TODO we should really check that the square contains only one guess?
     assert np.sum(board[x][y]) == 1, 'update_guesses should only be called on a confirmed square'
     for z in range(9):
         if board[x][y][z] == 0:
@@ -329,3 +328,15 @@ def init_guesses(board):
                 update_guesses(guess_board, x, y)
 
     return guess_board
+
+
+def remove_guesses(guess_board):
+    # converts 3d guess board to normal 2d board
+    assert guess_board.shape == (9, 9, 9)
+    board = np.zeros((9, 9))
+    for x in range(9):
+        for y in range(9):
+            if np.sum(guess_board[x][y]) == 1:
+                board[x][y] = np.argmax(guess_board[x][y]) + 1
+
+    return board
