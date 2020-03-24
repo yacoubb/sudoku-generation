@@ -340,3 +340,30 @@ def remove_guesses(guess_board):
                 board[x][y] = np.argmax(guess_board[x][y]) + 1
 
     return board
+
+
+def units(x, y):
+    #  returns coordinates of cells with similar units to (x,y)
+    col = []
+    xx = x
+    for yy in range(9):
+        col.append((xx, yy))
+    row = []
+    yy = y
+    for xx in range(9):
+        row.append((xx, yy))
+    box = []
+    for xx in range((x // 3) * 3, (x // 3) * 3 + 3):
+        for yy in range((y // 3) * 3, (y // 3) * 3 + 3):
+            box.append((xx, yy))
+    return row, col, box
+
+
+def move_string(move_type, coords, affected_candidates):
+    alphabet = 'ABCDEFGHIJ'
+    string = move_type + ' '
+    for coord in coords:
+        string += '(' + alphabet[coord[0]] + ', ' + str(coord[1] + 1) + '), '
+    print_candidates = np.copy(affected_candidates) + 1
+    string += str(list(map(lambda x: list(x), print_candidates)))
+    return string

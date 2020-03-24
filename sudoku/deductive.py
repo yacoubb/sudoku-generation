@@ -2,30 +2,16 @@ import os
 import sys
 sys.path.append('/'.join(os.path.abspath(__file__).split('/')[:-2]))
 from sudoku import util
-from sudoku.util import load, code_to_board, init_guesses, update_guesses, print_board
+from sudoku.util import load, code_to_board, init_guesses, update_guesses, print_board, units, move_string
 import numpy as np
 
+
+class SolverFailedException(Exception):
+    """Raised when a solver fails."""
+    pass
+
+
 # Implementing techniques from https://www.sudokuwiki.org/
-
-
-def units(x, y):
-    #  returns coordinates of cells with similar units to (x,y)
-    col = []
-    xx = x
-    for yy in range(9):
-        col.append((xx, yy))
-    row = []
-    yy = y
-    for xx in range(9):
-        row.append((xx, yy))
-    box = []
-    for xx in range((x // 3) * 3, (x // 3) * 3 + 3):
-        for yy in range((y // 3) * 3, (y // 3) * 3 + 3):
-            box.append((xx, yy))
-    return row, col, box
-
-# basic strategies
-
 
 def naked_single_scan(board):
     for x in range(9):
@@ -418,34 +404,61 @@ def xyz_wing_scan(board):
     return False, None, None
 
 
-# method tuple structure is (method, index, difficulty-factor)
-# so methods get executed in order of index and increment difficulty based on difficulty factor
-deductive_methods = {
-    'naked_single': (naked_single_scan, 1, 1),
-    'hidden_single': (hidden_single_scan, 2, 2),
-    'intersection': (intersection_scan, 4, 2),
-    'naked_pairs': (naked_pairs_scan, 5, 3),
-    # 'hidden_pairs': (hidden_pairs_scan, 6, 3),
-    'naked_triples': (naked_triples_scan, 7, 3),
-    # 'hidden_triples': (hidden_triples_scan, 8, 4),
-    'naked_quads': (naked_quads_scan, 9, 4),
-    # 'hidden_quads': (hidden_quads_scan, 10, 4),
-    'x_wing': (x_wing_scan, 11, 5),
-    'y_wing': (y_wing_scan, 12, 5),
-    'xyz_wing': (xyz_wing_scan, 13, 6),
-    # 'swordfish': (swordfish_scan, 14, 6),
-    # 'jellyfish': (jellyfish_scan, 15, 7)
-}
+def deductive_solve(board, log_moves=False):
+    # method tuple structure is (method, index, difficulty-factor)
+    # so methods get executed in order of index and increment difficulty based on difficulty factor
+    deductive_methods = {
+        'naked_single': (naked_single_scan, 1, 1),
+        'hidden_single': (hidden_single_scan, 2, 2),
+        'intersection': (intersection_scan, 4, 2),
+        'naked_pairs': (naked_pairs_scan, 5, 3),
+        # 'hidden_pairs': (hidden_pairs_scan, 6, 3),
+        'naked_triples': (naked_triples_scan, 7, 3),
+        # 'hidden_triples': (hidden_triples_scan, 8, 4),
+        'naked_quads': (naked_quads_scan, 9, 4),
+        # 'hidden_quads': (hidden_quads_scan, 10, 4),
+        'x_wing': (x_wing_scan, 11, 5),
+        'y_wing': (y_wing_scan, 12, 5),
+        'xyz_wing': (xyz_wing_scan, 13, 6),
+        # 'swordfish': (swordfish_scan, 14, 6),
+        # 'jellyfish': (jellyfish_scan, 15, 7)
+    }
+    if board.shape == (9, 9):
+        board = init_guesses(board)
 
+    modified = True
+    i = 0
+    while modified:
+        i += 1
+        modified = False
 
-def move_string(move_type, coords, affected_candidates):
-    alphabet = 'ABCDEFGHIJ'
-    string = move_type + ' '
-    for coord in coords:
-        string += '(' + alphabet[coord[0]] + ', ' + str(coord[1] + 1) + '), '
-    print_candidates = np.copy(affected_candidates) + 1
-    string += str(list(map(lambda x: list(x), print_candidates)))
-    return string
+        # TODO someday remove this once tests are finished
+        failed = False
+        for x in range(9):
+            for y in range(9):
+                if np.sum(board[x][y]) == 0:
+                    print(x, y)
+                    failed = True
+                    break
+        if failed:
+            print_board(board)
+            raise SolverFailedException
+
+        for key in deductive_methods:
+            result, coords, candidates = deductive_methods[key][0](board)
+            if result:
+                modified = True
+                if log_moves:
+                    print(i, move_string(key, coords, candidates))
+                    moves.append((key, coords, candidates))
+                    print_board(board)
+                break
+    if log_moves:
+        print_board(board)
+        for i, move in enumerate(moves):
+            print(i + 1, move_string(*move))
+
+    return util.remove_guesses(board)
 
 
 def test_all_boards():
@@ -483,32 +496,4 @@ if __name__ == "__main__":
     print(code)
     board = code_to_board(code)
     # print_board(board)
-    guess_board = init_guesses(board)
-    print_board(guess_board)
-    modified = True
-    i = 0
-    while modified:
-        i += 1
-        modified = False
-        failed = False
-        for x in range(9):
-            for y in range(9):
-                if np.sum(guess_board[x][y]) == 0:
-                    print(x, y)
-                    failed = True
-                    break
-        if failed:
-            print('error')
-            break
-        for key in deductive_methods:
-            result, coords, candidates = deductive_methods[key][0](guess_board)
-            if result:
-                print(i, move_string(key, coords, candidates))
-                moves.append((key, coords, candidates))
-                modified = True
-                print_board(guess_board)
-                break
-    print_board(guess_board)
-    for i, move in enumerate(moves):
-        print(i + 1, move_string(*move))
-    print(util.board_is_solved(util.remove_guesses(guess_board)))
+    deductive_solve(board, True)
