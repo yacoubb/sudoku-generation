@@ -367,3 +367,18 @@ def move_string(move_type, coords, affected_candidates):
     print_candidates = np.copy(affected_candidates) + 1
     string += str(list(map(lambda x: list(x), print_candidates)))
     return string
+
+
+def generate_guess_list(board):
+    guesses = []
+    for x in range(9):
+        for y in range(9):
+            if board[x][y] == 0:
+                xy_guesses = []
+                for i in range(1, 10):
+                    board[x][y] = i
+                    if position_is_valid(board, x, y):
+                        xy_guesses.append(i)
+                board[x][y] = 0
+                guesses.append({'x': x, 'y': y, 'guesses': xy_guesses})
+    return sorted(guesses, key=lambda guess: len(guess['guesses']))
